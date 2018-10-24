@@ -11,13 +11,14 @@
     "clean": "rimraf dist",
     "lint": "eslint --ext .js --ext .jsx --ext .vue client/",
     "lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue client/",
-    "precommit":" npm run lint-fix",
+    "precommit": " npm run lint-fix",
     "dev": "cross-env NODE_ENV=development webpack-dev-server --config build/webpack.config.client.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "vue": "2.5.13"
+    "vue": "2.5.13",
+    "vue-router": "^3.0.1"
   },
   "devDependencies": {
     "autoprefixer": "7.2.3",
