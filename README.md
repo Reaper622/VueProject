@@ -675,3 +675,328 @@ export default () => {
 }
 ```
 
+为了实现跳转，我们还需要用router-view来实现对路由跳转过后的展示
+
+```html
+// app.vue
+<template>
+  <div id="app">
+    <div id="cover"></div>
+    <Header></Header>
+    <router-view></router-view>  //这部分来进行跳转,页面内容展示在这部分
+    <!-- <todo></todo> -->
+    <Footer></Footer>
+  </div>
+</template>
+```
+
+我们也可以用路由来实现首页重定向，在routes.js写入这部分内容
+
+```javascript
+//routes.js
+import Todo from '../views/todo/todo.vue'  //引入要展示的页面
+import Login from '../views/login/login.vue'
+
+export default [
+    {
+      path: '/',  
+      redirect: '/app' //当输入默认路径时重定向到app页面
+    },
+    {
+        path: '/app', //网页的路径
+        component: Todo //指定输入上方路径后显示什么页面
+    },
+    {
+        path: '/login',
+        compoent: Login
+    }
+]
+```
+
+此时我们会注意到网页上的url是  *http://localhost:8080/#/app*，他默认会传一个hash，我们可以更改这个东西需要更改router.js的内容
+
+```javascript
+import Router from 'vue-router'  //引入vue-router模块
+import routes from './routes' //引入我们写的路由信息
+
+
+//每次引入路由文件时会返回一个路由对象
+export default () => {
+    return new Router({
+        routes,
+        mode:'history'  //mode改为 'hash'即为hash方式
+    })
+}
+```
+
+此时在此运行我就可以发现那个#消失了
+
+我们还可以通过base属性设计**基路径** 
+
+```javascript
+import Router from 'vue-router'  //引入vue-router模块
+import routes from './routes' //引入我们写的路由信息
+
+
+//每次引入路由文件时会返回一个路由对象
+export default () => {
+    return new Router({
+        routes,
+        mode:'history',
+        base: '/base/'  //设置基路径为base,通过vue-router的跳转都会加入基路径
+    })
+}
+```
+
+此时我们再访问localhost:8080发现他的路径跳转为了
+
+*localhost:8080/base/app*
+
+但基路径并不是强制的，我们把base去掉访问依然可以访问到app
+
+还有两个属性使我们要配合router-link使用的
+
+```html
+//app.vue
+<template>
+  <div id="app">
+    <div id="cover"></div>
+    <Header></Header>
+    <router-link to="/app">app</router-link>
+    <router-link to="/login">login</router-link>
+    <router-view></router-view>
+    <!-- <todo></todo> -->
+    <Footer></Footer>
+  </div>
+</template>
+```
+
+我们在app.vue中加入两个router-link(与a标签类似，原理是通过a标签实现的),to的内容即为他们要跳转的路由,然后我们可以全局设置链接的样式
+
+```javascript
+export default () => {
+    return new Router({
+        routes,
+        mode:'history',
+        linkActuveCLass:'active-link', //只要有一部分被激活会加上
+        linkExactActiveClass: 'exact-active-link' //当前路径完全匹配才加上
+    
+    })
+}
+```
+
+可能会有点难理解，那我们这样想，你当前有一个/app的页面，展示的是app.vue，然后app下面有个子页面是childApp.vue，路径是/app/childApp，当我们在*localhost:8080/app/childApp*的路径下时，此时routerlink to 为childApp的链接的样式为'active-link' 和'exact-active-link',而app的routerlink的样式为'active-link' 而不会有'exact-active-link'
+
+
+
+### 路径的映射
+
+我们把路径输入url时，按下回车，会想服务器发送一个请求，如果此时我们没有在服务器中，添加路由映射时，浏览器会返回我们一个错误信息
+
+> Cannot GET /xxx            //xxx即为url的内容
+
+```javascript
+//webpack.config.client.js
+const devServer = {
+    port: 8000,
+    host: '0.0.0.0',
+    overlay: {
+      errors: true,
+    },
+    historyApiFallback: {
+        index: 'index.html'      //加上这个我们输入url后刷新页面还是会显示出内容
+    },
+    hot: true
+  }
+
+```
+
+
+
+### 页面的跳转时的滚动保留
+
+我们有时在跳转页面时，不想回到上一级时已经返回到了顶部而不是跳转之前的位置，我们可以在Router里设置一个scrollBehavior
+
+```javascript
+export default () => {
+    return new Router({
+        routes,
+        mode:'history',
+        scrollBehavior (to, from, savedPosition){ //to -> 跳转的路由 from -> 当前的路由即跳转的起始点 savedPosition -> 保存当前滚动条滚动的位置 
+            if(savedPosition) {  //如果是有滚动距离的，返回到之前的页面位置
+                return savedPosition
+            } else { //否则，返回顶部
+                return {x:0 , y:0}
+            }
+        }
+    
+    })
+}
+```
+
+### 配置路由的参数
+
+这部分主要讲路由方面的参数
+
+#### name
+
+```javascript
+import Todo from '../views/todo/todo.vue'
+import Login from '../views/login/login.vue'
+
+export default [
+  {
+    path: '/',
+    redirect: '/app' //当输入默认路径时重定向到app页面
+  },
+  {
+    path: '/app',
+    component: Todo,
+    name: 'app'  //给当前的路由设置一个姓名，可以用来跳转，与路径和组件名无强制联系
+  },
+  {
+    path: '/login',
+    compoent: Login
+  }
+]
+
+```
+
+然后在routerlink上可以进行通过name跳转
+
+```html
+<router-link :to="{name:'app'}"> </router-link>  //传入对象，让Vue来解析它
+```
+
+之后就可以进行跳转了，不必每次都要写路径
+
+#### meta
+
+用来存放一些元信息
+
+```javascript
+import Todo from '../views/todo/todo.vue'
+import Login from '../views/login/login.vue'
+
+export default [
+  {
+    path: '/',
+    redirect: '/app' //当输入默认路径时重定向到app页面
+  },
+  {
+    path: '/app',
+    component: Todo,
+    meta: {
+          title:'this is app',  //与html的meta同样的效果
+          description: 'author Reaper Lee'
+      }
+  },
+  {
+    path: '/login',
+    compoent: Login
+  }
+]
+```
+
+#### children
+
+用来写当前路径下的子组件
+
+```javascript
+import Todo from '../views/todo/todo.vue'
+import Login from '../views/login/login.vue'
+
+export default [
+  {
+    path: '/app',
+    component: Todo,
+   children: [ //注意是数组
+       {
+           path: 'child', //路径信息，与父级相同
+           component: Child 
+       }
+   ]
+  }
+]
+```
+
+但注意这个只会在 父组件即(Todo)下的routerview展示，不会和Todo抢占同一个routerview
+
+### 路由的Transition
+
+transition顾名思义就是路由的过度，即为一次过渡动画，我们使用时要配合routerview使用
+
+```html
+//app.vue
+<template>
+  <div id="app">
+    <router-link to="/app">app</router-link>
+    <router-link to="/login">login</router-link>
+      <transition name="fade"> //使用fade的动画作为过渡
+          <router-view></router-view>
+      </transition>
+  </div>
+</template>
+
+<style>
+    //定义这个fade动画
+    .fade-enter-active, .fade-leave-active {
+        transition: opacity .5s;
+    }
+    .fade-enter, .fade-leave-to {
+        opacity: 0;
+    }
+</style>
+```
+
+
+
+### 路由传参
+
+我们可以通过路由传递一些参数，这个会在我们比如查看一个物品的详情页等场景使用会比较多。具体方法如下
+
+```javascript
+// routes.js
+export default [
+  {
+    path: '/app/:id', //这里我们就声明了一个路由上的参数
+    component: Todo,
+    
+  }
+]
+```
+
+此时我们直接访问/app 是不会有内容的
+
+但当我们访问/app/xxxx (xxxx为要传递的参数),此时我们就可以正常的显示页面，我们获取这个参数可以在父组件中使用this.$route来获取参数
+
+```
+this.$router.params.id 就可以拿到路径中的参数了，id是我们在上面的path中给的参数名为id，要与参数名保持一致
+```
+
+还有一种更强大的方法，那就是把路径中的参数作为组件的**props**传递给组件
+
+```javascript
+// routes.js
+export default [
+  {
+    path: '/app/:id', //这里我们就声明了一个路由上的参数
+    props:true, //这里我们设置为true即可让参数作为props传递给组件
+    component: Todo
+  }
+]
+```
+
+然后在组件中我们需要把参数的props声明
+
+```javascript
+//todo.vue
+export default {
+    props: ['id']  //声明一个名为 id 的props数据
+}
+```
+
+然后我们就可以在组件中拿到这个参数了！而且通过props传递的参数我们可以更好的使用，所以如果真的需要通过路径传参数我们尽可能使用props。
+
+
+
