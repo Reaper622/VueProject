@@ -14,6 +14,10 @@
 import Header from './layout/header.vue'
 import Footer from './layout/footer.jsx'
 import Todo from './views/todo/todo.vue'
+import {
+  mapState,
+  mapGetters
+} from 'vuex'
 
 console.log(Header.__docs)
 
@@ -22,6 +26,11 @@ export default {
     Header,
     Footer,
     Todo
+  },
+  computed: {
+    fullName () {
+      return this.$store.getters.fullName
+    }
   }
 }
 </script>

@@ -35,12 +35,12 @@
 | created       | 还未绑定Dom,不能进行dom操作                                  |            |
 | beforeMount   | el只为html中写的节点，还未绑定，说明还未渲染（未调用render方法） |            |
 | mounted       | el绑定为渲染后的节点，说明之前进行了渲染（已调用render方法），实例已经创建完成 |            |
-| beforeUpdate  |                                                              |            |
-| updated       |                                                              |            |
+| beforeUpdate  | 更新的对象时模板，需要虚拟DOM的重洗渲染和补丁修改，但是如果更改的数据在模板中没有使用，就不会进行更新 |            |
+| updated       | 数据更改导致虚拟DOM重新渲染和打补丁，注意要避免在这个钩子函数中操作数据 |            |
 | activated     |                                                              |            |
 | deactivated   |                                                              |            |
-| beforeDestory |                                                              |            |
-| destoryed     |                                                              |            |
+| beforeDestory | 实例销毁之前调用。在这一步，实例仍然完全可用，this仍能获取到实例。一般在这一步中进行：销毁定时器、解绑全局事件、销毁插件对象等操作 |            |
+| destoryed     | Vue 实例销毁后调用。调用后，Vue 实例指示的所有东西都会解绑定，所有的事件监听器会被移除，所有的子实例也会被销毁 |            |
 
 ![生命周期图示](https://cn.vuejs.org/images/lifecycle.png)
 
@@ -997,6 +997,337 @@ export default {
 ```
 
 然后我们就可以在组件中拿到这个参数了！而且通过props传递的参数我们可以更好的使用，所以如果真的需要通过路径传参数我们尽可能使用props。
+
+
+
+我们有时会遇见在主页要使用多个router-view来展示组件的情况，此时我们需要给一些router-view提供name属性
+
+```html
+//app.vue
+<template>
+  <div id="app">
+    <router-link to="/app">app</router-link>
+    <router-link to="/login">login</router-link>
+    <router-view />   //内部不放内容可以写成空标签形式
+    <router-view name="a" />
+  </div>
+</template>
+```
+
+与此同时，我们也要修改路由信息的JavaScript文件的一些内容
+
+```javascript
+//routes.js
+export default [
+  {
+    path: '/app/:id', //这里我们就声明了一个路由上的参数
+      components:{ //注意因为要展示多个组件，所以我们这里定义为components
+          default: App   //在没有给name属性的router-view中展示的组件
+          a: Another  //在name属性为a的router-view中展示
+      } ,  
+    
+  }
+]
+```
+
+### 路由导航守卫
+
+当我们触发一个导航时，全局前置守卫按照穿件的顺序调用，守卫是异步执行的。我们可以通过守卫来进行一些拦截，比如只有登录之后才能进入的一些页面或者使用的一些功能。
+
+##### 全局：路由守卫有三个钩子函数
+
+
+
+| 函数名        | 作用                                                         |
+| ------------- | ------------------------------------------------------------ |
+| beforeEach    | 一般在这个守卫方法中进行全局拦截，比如必须满足某种条件（用户登录等）才能进入路由的情况 |
+| beforeResolve | 和beforeEach类似，区别是在**导航被确认之前**，同时在所有**组件内守卫和异步路由组件被解析之后**，解析守卫就被调用 |
+| afterEach     | 在所有路由跳转结束的时候调用这些钩子不会接受 next 函数也不会改变导航本身 |
+| beforeEnter   | 可直接定义在路由配置上，和beforeEach方法参数、用法相同，调用位置在beforeEach 和 beforeResolve |
+
+大体的用法如下
+
+```javascript
+//index.js
+import createRouter from './config/router' //先导入我们写的路由信息
+
+const router = createRouter()
+
+router.beforeEach((to, from, next) >= { //to -> 跳转的路由 from -> 当前的路由即跳转的起始点，next为此次跳转的函数，调用他才能执行跳转
+    if(如果没有登录){
+        next('/login')  //跳转到登录页面
+    }else if(没有注册) {
+        next({path:'/register',replace:true});  //我们也可以传递一个对象,replace设置为true就不会放在history的栈堆内
+	}
+})
+
+router.beforeResolve((to, from, next) >= { 
+    //do something
+    next();
+})
+
+router.beforeEach((to, from) >= { 
+    //do something
+    next();
+})
+```
+
+在路由上设置beforeEnter
+
+```javascript
+//router.js
+export default [
+  {
+    path: '/app',
+    component: Todo,
+    name: 'app', // 给当前的路由设置一个姓名，可以用来跳转，与路径和组件名无强制联系
+    meta: {
+      title: 'this is app', // 与html的meta同样的效果
+      description: 'author Reaper Lee'
+    },
+      beforeEnter (to,from,next) { //只有在进入路由之前调用
+          //dosomething
+      }
+  }
+]
+```
+
+
+
+ ##### 组件内路由守卫
+
+| 函数名            | 作用                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| beforeRouteEnter  | 在渲染该组件的对应路由前调用，用法与参数和beforeEach类似， **next需要被主动调用**  ，此时实例并未被创建，不能使用this |
+| beforeRouteUpdate | 在当前路由改变，并且组件被复用时调用，此时实例已经创建，this可以访问实例，**next需要被主动调用**，不能传回调 |
+| beforeRouteLeave  | 导航离开该组件的对应路由时调用。可以访问组件实例this，**next需要被主动调用**，不能传回调 |
+
+```javascript
+//comp.vue
+export default {
+    beforeRouteEnter (to, from, next) {
+        //在这里我们因为没有实例，所以不能用this，但我们要用获取的参数，就在next里使用回调函数
+        next( vm => {
+            //在这里可以拿到参数
+        })
+    },
+    beforeRouteUpdate (to,from, next){
+      	next()  
+    },
+    beforeRouteLeave (to, from, next){ //我们可以通过下面的代码来实现退出时的提示确认
+        if(flobal.confirm('are you sure to leave?')){ 
+            next()
+        }
+    }
+    data() {
+        return {
+            
+        }
+    }
+}
+```
+
+### 异步组件
+
+我们路由如果有非常多，一次性通过webpack把全部打包进去会导致js文件变得异常的大，并且初次加载的时间会变得非常长，显然是不可取的。我们可以让对应不同的路由只加载那一部分的组件的代码。
+
+使用这部分功能我们需要安装一个babel的插件
+
+> npm i babel-plugin-syntax-dynamic-import -D
+>
+> 之后在 .babelrc文件中我们写入
+>
+> ```javascript
+> "plugins": [
+>     "syntax-dynamic-import"
+>   ]
+> ```
+
+```javascript
+//routes.js
+//注意我们不在开头import组件
+
+export default [
+  {
+    path: '/app',
+    component:() => { import('组件的路径')},  //注意要用一个函数
+  }
+]
+```
+
+
+
+## VueX
+
+VueX 是基于Vue框架的一个状态管理工具
+
+官网的介绍是：
+
+>Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。它采用集中式存储管理应用的所有组件的状态，并以相应的规则保证状态以一种可预测的方式发生变化。
+
+### 加入VueX
+
+> npm install vuex -S
+
+之后我么你在项目的文件夹里建一个新的文件夹为stroe，并在内部创建stroe.js，他将作为整个数据存储的入口
+
+````javascript
+//store.js
+import Vuex from 'vuex'
+import Vue from 'vue'
+
+Vue.use(Vuex)
+
+export default () => {
+	return	new Vuex.store({
+            state:{  //储存的对象
+                count: 0
+            },
+            mutations:{  //对state进行操作的方法
+                updateCount(state,num){ //第一个参数都为state，第二个参数为你可以传的参数
+                    state.count = num;
+                }
+            }
+    })
+}
+
+
+````
+
+我们需要在index.js引入Vuex
+
+````javascript
+//index.js
+import Vuex from 'vuex'
+import createStore from './store/store'
+
+const store = createStore()
+
+new Vue({
+  router,
+  store,
+  render: (h) => h(App)
+}).$mount(root)
+````
+
+到这里之后我们就已经把Vuex引入了
+
+### 使用Vuex
+
+```vue
+//app.vue
+<script>
+    export default {
+        components:{
+        },
+        mounted () {
+            this.$router //我们就可以通过this.$store拿到所需的数据
+            this.$store.commit('updateCount',参数) //我们使用store的mutaitions时需要使用 commit方法，第一个参数
+        }
+    }
+</script>
+```
+
+### state
+
+我们可以把state当做vue组件的data数据来使用
+
+```javascript
+//state.js
+export default {
+    
+}
+```
+
+我们也要在store里引入
+
+```javascript
+//store.js
+import defaultState from './state/state'
+
+export default () => {
+    return new Vuex.Store({
+        state: defaultState,
+        mutations: {
+            updateCount(state,num){
+                state.count = num;
+            }
+        }
+    })
+}
+```
+
+我们也可以把mutations也单独写个文件
+
+```javascript
+//mutations.js
+export default {
+    updateCount (state, num){
+        state.count = num;
+    }
+}
+//store.js
+import Vuex from 'vuex'
+
+import defaultState from './state/state'
+import mutations from './mutations/mutations'
+
+export default () => {
+    return new Vuex.Store({
+        state: defaultState,
+        mutations: mutations
+    })
+}
+
+```
+
+### getters
+
+我们可以把一些要直接在页面用的数据放在getters，然后可以直接方便使用
+
+比如我们在state.js里写入了我们的名字信息
+
+```javascript
+// state.js
+export default {
+    count: 0,
+    firstName: 'Reaper',
+    lastName: 'Lee'
+}
+```
+
+我们在getters里写入获取全名的方法
+
+```javascript
+//getters.js
+export default {
+    fullName (state) {
+        return `${state.firstName} ${state.lastName}`
+    }
+}
+```
+
+然后我们可以通过Vuex提供的方法快速使用getters
+
+```vue
+//app.vue
+<template>
+	<p>
+        {{fullName}}
+    </p>
+</template>
+
+
+<script>
+    export default {
+        computed: {
+            fullName () {
+                return this.$store.getters.fullName
+            }
+        }
+    }
+</script>
+```
 
 
 
