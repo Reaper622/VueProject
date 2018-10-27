@@ -1329,5 +1329,156 @@ export default {
 </script>
 ```
 
+### mutations
+
+我们一般把修改state值的一些方法放在mutation中，然后在组件中通过调用修改state
+
+注意，mutation 只能传递两个参数，第一个是state对象，第二个是传参的对象，单个参数可以单独放入，如果要传递多个参数，则要放在一个对象中
+
+> 其实我们在组件中可以直接使用this.$store.state来进行修改，但这样不够规范，如果想防止这种情况就在实例化时将strict属性设置为true
+>
+> ```javascript
+> export default () => {
+>   return new Vuex.Store({
+>     strict:true
+>   })
+> }
+> 
+> ```
+>
+>
 
 
+
+### actions
+
+mutations只能同步操作，不能写入异步的代码，如果要执行异步操作，必须要写入actions中
+
+例如我们要根据传入的参数延时修改数据
+
+```javascript
+//actions.js
+export default {
+    updateCountAsync (store, data) {
+        setTimeout(() => {
+            store.commit('updateCount',data.num) //触发mutations的修改事件
+        }, data.time)
+    }
+}
+```
+
+我们在vue文件中触发actions的方法与mutations有所不同，触发mutation使用commit，触发action使用dispatch
+
+```javascript
+//app.vue
+export default {
+	...
+    mounted() {
+    	this.$store.dispatch('updateCountAsync',{ num:5,time:2000})
+	}
+}
+```
+
+### 模块
+
+我们有时调用store要存在多种场景，需要划分作用域，这时我们就要使用到Vuex的模块
+
+```javascript
+//store.js
+export default () => {
+  return new Vuex.Store({
+    modules: {
+      a: {
+         namespaced: true, //使用这个在不同的模块中可以使用相同命名的mutations
+        state: {
+          text :1
+        },
+          mutations: {
+              updateText(state,text){
+                  state.text = text;
+              }
+          }，
+          getters: {
+          textPlus(state,getters,rootState){ //第二个参数是getter方法，第三个参数是全局state
+          return state.text + 1
+      		}
+      	  },
+      actions:{
+          add({state,commit,rootState}){
+              commit('updateText',rootState.count,{root:true}) //使用{root:true} 就可以让rootState为全局
+          }
+      }
+      },
+      b: {
+        text: 2
+      }
+    }
+  })
+}
+
+```
+
+在vue文件调用时
+
+```
+//app.vue
+computed: {
+    textA() {
+        return this.$store.state.a.text //调用a模块的text值
+    },
+    textB() {
+        return this.$store.state.b.text //调用b模块的text值
+    }
+}
+```
+
+#### Vuex热更替
+
+我们在使用vuex时会发现，每当我们修改vuex内的内容再保存时，vue不会热更替显示内容，而是会刷新一下，WTF，这么好用的功能难道Vuex用不了:horse:?
+
+当然不是，我们只需要在store.js加入部分代码即可
+
+```javascript
+//store.js
+
+import defaultState from './state/state'
+import mutations from './mutations/mutations'
+import getters from './getters/getters'
+import actions from './actions/actions'
+
+export default () => {
+    const store = new Vuex.Store({
+     	state: defaultState,
+    	mutations: mutations,
+    	getters: getters,
+        actions: actions,
+    })
+        
+        if (module.hot) {
+        module.hot.accept([
+        	'./state/state',
+            './mutations/mutations',
+            './actions/actions',
+            './getters/getters'
+        ],() => {
+            const newState = require('./state/state').default,
+            const newMutations = require('./mutations/mutations').default
+            const newGetters = require('./getters/getters').default
+            const newActions = require('./actions/actions').default
+            
+            store.hotUpdate({
+                state:newState,
+                mutations:newMutations,
+                actions:newActions,
+                getters:newGetters
+            })
+        })
+    }
+    
+    return store
+}
+```
+
+
+
+> 一些更多的有关Vuex的API [可以查看](https://vuex.vuejs.org/zh/api/#vuex-store-%E5%AE%9E%E4%BE%8B%E6%96%B9%E6%B3%95)
