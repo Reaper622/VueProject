@@ -1161,6 +1161,8 @@ export default [
 
 VueX 是基于Vue框架的一个状态管理工具
 
+![](https://vuex.vuejs.org/vuex.png)
+
 官网的介绍是：
 
 >Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。它采用集中式存储管理应用的所有组件的状态，并以相应的规则保证状态以一种可预测的方式发生变化。
@@ -1221,7 +1223,7 @@ new Vue({
         components:{
         },
         mounted () {
-            this.$router //我们就可以通过this.$store拿到所需的数据
+            this.$store //我们就可以通过this.$store拿到所需的数据
             this.$store.commit('updateCount',参数) //我们使用store的mutaitions时需要使用 commit方法，第一个参数
         }
     }
@@ -1482,3 +1484,27 @@ export default () => {
 
 
 > 一些更多的有关Vuex的API [可以查看](https://vuex.vuejs.org/zh/api/#vuex-store-%E5%AE%9E%E4%BE%8B%E6%96%B9%E6%B3%95)
+
+
+
+## 服务端渲染
+
+服务端渲染的优势:
+
+- 更好的 SEO，由于搜索引擎爬虫抓取工具可以直接查看完全渲染的页面。
+- 更快的内容到达时间(time-to-content)，特别是对于缓慢的网络情况或运行缓慢的设备。无需等待所有的 JavaScript 都完成下载并执行，才显示服务器渲染的标记，所以你的用户将会更快速地看到完整渲染的页面。通常可以产生更好的用户体验，并且对于那些「内容到达时间(time-to-content)与转化率直接相关」的应用程序而言，服务器端渲染(SSR)至关重要。
+
+但同时也要注意一些权衡之处:
+
+- 开发条件所限。浏览器特定的代码，只能在某些生命周期钩子函数(lifecycle hook)中使用；一些外部扩展库(external library)可能需要特殊处理，才能在服务器渲染应用程序中运行。
+- 涉及构建设置和部署的更多要求。与可以部署在任何静态文件服务器上的完全静态单页面应用程序(SPA)不同，服务器渲染应用程序，需要处于 Node.js server 运行环境。
+- 更多的服务器端负载。在 Node.js 中渲染完整的应用程序，显然会比仅仅提供静态文件的 server 更加大量占用 CPU 资源(CPU-intensive - CPU 密集)，因此如果你预料在高流量环境(high traffic)下使用，请准备相应的服务器负载，并明智地采用缓存策略。
+
+
+
+
+
+
+
+
+
